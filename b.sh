@@ -1,7 +1,7 @@
 #!/bin/bash
 echo "Docker System Cleanup Script"
 
-
+doker_all(){
 echo "The docker containers in this SYSTEMS are:"
 while read -r line
 do
@@ -29,3 +29,27 @@ then
   fi
 fi
 done < <(docker image ls)
+}
+
+image_list(){
+res1=`docker image rm $1`
+  if [ $? == 0 ]
+  then
+   echo "remove successful for $1 "
+  else
+   echo "remove failed for $1"
+  fi
+}
+
+#Main
+
+if [ $# != 0 ]
+then
+  image_list ubuntu
+elif [ $# == 0 ]
+then
+  doker_all
+else
+  echo "Nothing"
+fi
+
