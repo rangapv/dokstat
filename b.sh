@@ -1,8 +1,11 @@
 #!/bin/bash
+:`
 echo "Docker System Cleanup Script"
 echo "Usuage: ./b.sh iamge_id : to remove only  the images IF no container is using this image"
 echo "Usuage: ./b.sh -r image_id : to list the container which has these image dependecy and remove the container as well"
 echo "usuage: ./b.sh : to list all images and containers running in the system and ask to delete per image"
+echo "usuage: ./b.sh -d : list the total number of images and any dangling images present"
+`
 doker_all(){
 echo "The docker containers in this SYSTEMS are:"
 while read -r line
@@ -33,6 +36,33 @@ fi
 done < <(docker image ls)
 }
 
+image_dangle(){
+count=0
+while read -r line
+do
+
+repo=`echo "$line" | awk '{print $1}'`
+id=`echo "$line" | awk '{print $3}'`
+
+c1=`docker container ls | grep "$repo"`
+i1=`docker container ls | grep "$id"`
+
+if [ -z "$c1" ]
+then
+ if [ -z "$i1" ]
+ then
+ echo "The image with ID: $id and Repo: $repo is Dangling meaning not referenced by any running container"
+ fi
+fi
+if [ ! -z "$c1" ] || [ ! -z "$i1" ]
+then
+ ((count++))
+fi
+
+done < <(docker image ls)
+echo "Total in use Images are : $count"
+}
+
 image_list(){
 res1=`docker image rm $1`
   if [ $? == 0 ]
@@ -50,7 +80,7 @@ test2=`echo "$test1" | awk '{print $1}'`
 test=`docker container ls | grep "$test2"`
 if [ ! -z "$test" ]
 then
-echo "The containers that are suing the image-ID $1 are : $test"
+echo "The containers that are using the image-ID $1 are : $test"
 else
 echo "No container is using this image $1"
 fi
@@ -62,10 +92,12 @@ then
   if [ $1 == "-r" ]
   then
     image_container_match $2
+  elif [ $1 == "-d" ]
+  then
+    image_dangle
   else
   # echo "Acceptable commands are -r IMAGE_ID"
   image_list ubuntu
-  break;
   fi
 
 elif [ $# == 0 ]
