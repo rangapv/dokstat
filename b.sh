@@ -4,8 +4,8 @@
 #echo "Usuage: ./b.sh -r image_id : to list the container which has these image dependecy and remove the container as well"
 #echo "usuage: ./b.sh : to list all images and containers running in the system and ask to delete per image"
 #echo "usuage: ./b.sh -d : list the total number of images and any dangling images present"
-#echo "usuage: ./b.sh -c image_id " list the image if it has depency or not"
-
+#echo "usuage: ./b.sh -c image_id " list the image if it has dependency or not"
+#echo "usuage: ./b.sh -a :list images as a Parent or a Dependendant
 
 doker_all(){
 echo "The docker containers in this SYSTEMS are:"
@@ -76,6 +76,24 @@ res1=`docker image rm $1`
   fi
 }
 
+
+image_ancestory(){
+while read -r line
+do
+id=`echo "$line" | awk '{print $3}'`
+dep=`docker inspect --format='{{.Parent}}' $id`
+
+if [ -z "$dep" ]
+then
+  echo "Image with ID:$id is a PARENT"
+else
+  echo "Image with ID:$id is a CHILD"
+fi 
+
+done< <(docker image ls)
+}
+
+
 image_recurssion(){
 echo "Inside recurssion"
 re1=`(docker image rm $1 2>&1 >/dev/null)`
@@ -85,8 +103,8 @@ if [ ! -z "$re1" ]
 then
 echo "This image $1 has Dependency"
 fi
-
 }
+
 image_container_match(){
 test1=`docker image ls | grep $1`
 test2=`echo "$test1" | awk '{print $1}'`
@@ -111,6 +129,9 @@ then
   elif [ $1 == "-c" ]
   then
     image_recurssion $2
+  elif [ $1 == "-a" ]
+  then
+    image_ancestory
   else
   # echo "Acceptable commands are -r IMAGE_ID"
   image_list ubuntu
