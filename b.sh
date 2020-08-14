@@ -5,7 +5,8 @@
 #echo "usuage: ./b.sh : to list all images and containers running in the system and ask to delete per image"
 #echo "usuage: ./b.sh -d : list the total number of images and any dangling images present"
 #echo "usuage: ./b.sh -c image_id " list the image if it has dependency or not"
-#echo "usuage: ./b.sh -a :list images as a Parent or a Dependendant
+#echo "usuage: ./b.sh -a :list images as a Parent or a Dependendant"
+#echo "usuage: ./b.sh -s : list image offsprings"
 
 doker_all(){
 echo "The docker containers in this SYSTEMS are:"
@@ -78,6 +79,8 @@ res1=`docker image rm $1`
 
 
 image_ancestory(){
+ccount=0
+pcount=0
 while read -r line
 do
 id=`echo "$line" | awk '{print $3}'`
@@ -85,14 +88,70 @@ dep=`docker inspect --format='{{.Parent}}' $id`
 
 if [ -z "$dep" ]
 then
+  ((pcount++))
   echo "Image with ID:$id is a PARENT"
 else
+  ((ccount++))
   echo "Image with ID:$id is a CHILD"
 fi 
 
 done< <(docker image ls)
+echo "Total Parent Images (Idependent)in this Node is: $pcount"
+echo "Total Children Images (Dependent)in this Node is: $ccount"
 }
 
+
+image_array(){
+cc="$#"
+childcount=0
+args=("$@")
+cdc=${#args[@]}
+echo "Number of layers in Parent with ImageID:${args[$((cc-1))]} is $((cdc-2))"
+a=$1
+for ((k=1; k<$cdc; k++))
+do
+#  echo "the parent id is ${args[$((cc-1))]}"
+  while read -r line
+  do
+  id=`echo "$line" | awk '{print $3}'`
+  dep=`docker inspect --format='{{.RootFS.Layers}}' $id`
+#  res= `echo "$dep" | grep ${cd[${k}]}`
+temp1="${args[${k}]}"
+temp2=`echo "$temp1" | sed -e 's/\[//g; s/\]//g'`
+temp3=`echo "$dep" | grep $temp2`
+  if [ ! -z "$temp3" ]
+  then
+  echo "Image with ID: $id is a child of ${args[$((cc-1))]}"
+  ((childcount++))
+  fi
+  done< <(docker image ls)
+done
+echo "The Parent with image ID:${args[$((cc-1))]} has:$childcount dependent"
+}
+
+
+image_dependency(){
+pcount=0
+while read -r line
+do
+
+id=`echo "$line" | awk '{print $3}'`
+parent=`docker inspect --format='{{.Parent}}' $id`
+
+if [ -z "$parent" ]
+then
+ ((pcount++))
+dep=`docker inspect --format='{{.RootFS.Layers}}' $id`
+
+df=`docker inspect --format='{{.RootFS.Layers}}' $id | awk '{split($0,a);print length(a);for (i=1;i<=length(a);i++) print a[i]}'&1>/dev/null`
+
+echo "the df is $df"
+image_array $df $id
+
+fi
+done< <(docker image ls)
+echo " The Total Parent Images(Independent) in this Node is: $pcount"
+}
 
 image_recurssion(){
 echo "Inside recurssion"
@@ -132,6 +191,9 @@ then
   elif [ $1 == "-a" ]
   then
     image_ancestory
+  elif [ $1 == "-s" ]
+  then
+    image_dependency
   else
   # echo "Acceptable commands are -r IMAGE_ID"
   image_list ubuntu
