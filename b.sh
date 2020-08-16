@@ -116,19 +116,64 @@ do
   id=`echo "$line" | awk '{print $3}'`
   dep=`docker inspect --format='{{.RootFS.Layers}}' $id`
 #  res= `echo "$dep" | grep ${cd[${k}]}`
+  parent1=`docker inspect --format='{{.Parent}}' $id`
+  if [ ! -z "$parent1" ]
+  then
+  if [ "${args[$((cc-1))]}" != "$id" ]
+  then
 temp1="${args[${k}]}"
 temp2=`echo "$temp1" | sed -e 's/\[//g; s/\]//g'`
-temp3=`echo "$dep" | grep $temp2`
+temp3=`echo "$dep" | grep "$temp2"`
   if [ ! -z "$temp3" ]
   then
   echo "Image with ID: $id is a child of ${args[$((cc-1))]}"
   ((childcount++))
+  break;
+  fi
+  fi
   fi
   done< <(docker image ls)
 done
 echo "The Parent with image ID:${args[$((cc-1))]} has:$childcount dependent"
 }
 
+image_array1(){
+cc="$#"
+childcount=0
+args=("$@")
+cdc=${#args[@]}
+echo "Number of layers in Parent with ImageID:${args[$((cc-1))]} is $((cdc-2))"
+pa="${args[$((cc-1))]}"
+par1=`docker inspect --format='{{.RootFS.Layers}}' $pa`
+patemp1=`echo "$par1" | sed -e 's/\[//g; s/\]//g'`
+#echo "the patemp1 is $patemp1"
+
+if [ $((cdc-2)) > 0 ]
+then
+  while read -r line
+  do
+  id=`echo "$line" | awk '{print $3}'`
+  ch=`docker inspect --format='{{.Parent}}' $id`
+  
+  if [ ! -z "$ch" ] && [ $? == 0 ]
+  then
+  if [ "$pa" != "$id" ]
+  then
+  dep=`docker inspect --format='{{.RootFS.Layers}}' $id`
+  temp2=`echo "$dep" | sed -e 's/\[//g; s/\]//g'`
+  temp3=`echo "$temp2" | grep "$patemp1"`
+
+  if [ ! -z "$temp3" ]
+  then
+  echo "Image with ID: $id is a child of $pa"
+  ((childcount++))
+  fi
+  fi
+  fi
+  done< <(docker image ls)
+echo "The Parent with image ID:${args[$((cc-1))]} has:$childcount dependent"
+fi
+}
 
 image_dependency(){
 pcount=0
@@ -142,12 +187,13 @@ if [ -z "$parent" ]
 then
  ((pcount++))
 dep=`docker inspect --format='{{.RootFS.Layers}}' $id`
-
+res1=$?
 df=`docker inspect --format='{{.RootFS.Layers}}' $id | awk '{split($0,a);print length(a);for (i=1;i<=length(a);i++) print a[i]}'&1>/dev/null`
 
-echo "the df is $df"
-image_array $df $id
-
+if [ $res1 == 0 ]
+then
+image_array1 $df $id
+fi
 fi
 done< <(docker image ls)
 echo " The Total Parent Images(Independent) in this Node is: $pcount"
