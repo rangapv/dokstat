@@ -84,9 +84,12 @@ pcount=0
 while read -r line
 do
 id=`echo "$line" | awk '{print $3}'`
-dep=`docker inspect --format='{{.Parent}}' $id`
-
-if [ -z "$dep" ]
+dep=`docker inspect --format='{{.Parent}}' $id 2>&1`
+t1=$?
+stat=`echo "$dep" | grep "ERROR"`
+if [ $t1 == 0 ]
+then
+if [ -z "$dep" ] 
 then
   ((pcount++))
   echo "Image with ID:$id is a PARENT"
@@ -94,7 +97,7 @@ else
   ((ccount++))
   echo "Image with ID:$id is a CHILD"
 fi 
-
+fi
 done< <(docker image ls)
 echo "Total Parent Images (Idependent)in this Node is: $pcount"
 echo "Total Children Images (Dependent)in this Node is: $ccount"
@@ -145,16 +148,20 @@ cdc=${#args[@]}
 echo "Number of layers in Parent with ImageID:${args[$((cc-1))]} is $((cdc-2))"
 pa="${args[$((cc-1))]}"
 par1=`docker inspect --format='{{.RootFS.Layers}}' $pa`
+pat=$?
 patemp1=`echo "$par1" | sed -e 's/\[//g; s/\]//g'`
 #echo "the patemp1 is $patemp1"
-
+if [ $pat == 0 ]
+then
 if [ $((cdc-2)) > 0 ]
 then
   while read -r line
   do
   id=`echo "$line" | awk '{print $3}'`
-  ch=`docker inspect --format='{{.Parent}}' $id`
-  
+  ch=`docker inspect --format='{{.Parent}}' $id 2>&1`
+  cht=$?
+  if [ $cht == 0 ]
+  then 
   if [ ! -z "$ch" ] && [ $? == 0 ]
   then
   if [ "$pa" != "$id" ]
@@ -170,8 +177,10 @@ then
   fi
   fi
   fi
+  fi
   done< <(docker image ls)
 echo "The Parent with image ID:${args[$((cc-1))]} has:$childcount dependent"
+fi
 fi
 }
 
@@ -181,8 +190,10 @@ while read -r line
 do
 
 id=`echo "$line" | awk '{print $3}'`
-parent=`docker inspect --format='{{.Parent}}' $id`
-
+parent=`docker inspect --format='{{.Parent}}' $id 2>&1`
+chpa=$?
+if [ $chpa == 0 ]
+then
 if [ -z "$parent" ]
 then
  ((pcount++))
@@ -193,6 +204,7 @@ df=`docker inspect --format='{{.RootFS.Layers}}' $id | awk '{split($0,a);print l
 if [ $res1 == 0 ]
 then
 image_array1 $df $id
+fi
 fi
 fi
 done< <(docker image ls)
